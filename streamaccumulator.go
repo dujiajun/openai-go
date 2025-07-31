@@ -125,8 +125,8 @@ func (cc *ChatCompletion) accumulateDelta(chunk ChatCompletionChunk) bool {
 		for j := range delta.Delta.ToolCalls {
 			deltaTool := &delta.Delta.ToolCalls[j]
 
-			choice.Message.ToolCalls = expandToFit(choice.Message.ToolCalls, int(deltaTool.Index))
-			tool := &choice.Message.ToolCalls[deltaTool.Index]
+			choice.Message.ToolCalls = expandToFit(choice.Message.ToolCalls, boundIndex(deltaTool.Index))
+			tool := &choice.Message.ToolCalls[boundIndex(deltaTool.Index)]
 
 			if deltaTool.ID != "" {
 				tool.ID = deltaTool.ID
@@ -155,6 +155,13 @@ func (cc *ChatCompletion) accumulateDelta(chunk ChatCompletionChunk) bool {
 	}
 
 	return true
+}
+
+func boundIndex(idx int64) int {
+	if idx < 0 {
+		return 0
+	}
+	return int(idx)
 }
 
 // Updates the internal response state and returns the previous state if
