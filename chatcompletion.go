@@ -679,13 +679,15 @@ type ChatCompletionChunkChoiceDelta struct {
 	ToolCalls []ChatCompletionChunkChoiceDeltaToolCall `json:"tool_calls"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Content      respjson.Field
-		FunctionCall respjson.Field
-		Refusal      respjson.Field
-		Role         respjson.Field
-		ToolCalls    respjson.Field
-		ExtraFields  map[string]respjson.Field
-		raw          string
+		Content          respjson.Field
+		Reasoning        respjson.Field
+		ReasoningContent respjson.Field
+		FunctionCall     respjson.Field
+		Refusal          respjson.Field
+		Role             respjson.Field
+		ToolCalls        respjson.Field
+		ExtraFields      map[string]respjson.Field
+		raw              string
 	} `json:"-"`
 }
 
@@ -1328,15 +1330,17 @@ type ChatCompletionMessage struct {
 	ToolCalls []ChatCompletionMessageToolCall `json:"tool_calls"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Content      respjson.Field
-		Refusal      respjson.Field
-		Role         respjson.Field
-		Annotations  respjson.Field
-		Audio        respjson.Field
-		FunctionCall respjson.Field
-		ToolCalls    respjson.Field
-		ExtraFields  map[string]respjson.Field
-		raw          string
+		Content          respjson.Field
+		Reasoning        respjson.Field
+		ReasoningContent respjson.Field
+		Refusal          respjson.Field
+		Role             respjson.Field
+		Annotations      respjson.Field
+		Audio            respjson.Field
+		FunctionCall     respjson.Field
+		ToolCalls        respjson.Field
+		ExtraFields      map[string]respjson.Field
+		raw              string
 	} `json:"-"`
 }
 
@@ -1361,6 +1365,12 @@ func (r ChatCompletionMessage) ToAssistantMessageParam() ChatCompletionAssistant
 	// Explicit null is intentionally elided from the response.
 	if r.Content != "" {
 		p.Content.OfString = String(r.Content)
+	}
+	if r.Reasoning != "" {
+		p.Reasoning.OfString = String(r.Reasoning)
+	}
+	if r.ReasoningContent != "" {
+		p.ReasoningContent.OfString = String(r.ReasoningContent)
 	}
 	if r.Refusal != "" {
 		p.Refusal = String(r.Refusal)
