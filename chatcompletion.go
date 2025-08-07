@@ -1679,6 +1679,20 @@ func (u ChatCompletionMessageParamUnion) GetContent() (res chatCompletionMessage
 	return
 }
 
+func (u ChatCompletionMessageParamUnion) GetReasoning() (res chatCompletionMessageParamUnionContent) {
+	if vt := u.OfAssistant; vt != nil {
+		res.any = vt.Reasoning.asAny()
+	}
+	return
+}
+
+func (u ChatCompletionMessageParamUnion) GetReasoningContent() (res chatCompletionMessageParamUnionContent) {
+	if vt := u.OfAssistant; vt != nil {
+		res.any = vt.ReasoningContent.asAny()
+	}
+	return
+}
+
 // Can have the runtime types [*string], [_[]ChatCompletionContentPartTextParam],
 // [_[]ChatCompletionContentPartUnionParam],
 // [\*[]ChatCompletionAssistantMessageParamContentArrayOfContentPartUnion]
