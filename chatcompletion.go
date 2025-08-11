@@ -562,6 +562,8 @@ const (
 type ChatCompletionChunk struct {
 	// A unique identifier for the chat completion. Each chunk has the same ID.
 	ID string `json:"id,required"`
+	// OpenRouter's provider
+	Provider string `json:"provider,nullable"`
 	// A list of chat completion choices. Can contain more than one elements if `n` is
 	// greater than 1. Can also be empty for the last chunk if you set
 	// `stream_options: {"include_usage": true}`.
@@ -608,6 +610,7 @@ type ChatCompletionChunk struct {
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID                respjson.Field
+		Provider          respjson.Field
 		Choices           respjson.Field
 		Created           respjson.Field
 		Model             respjson.Field
