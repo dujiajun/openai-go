@@ -166,6 +166,8 @@ func (r *ChatCompletionService) Delete(ctx context.Context, completionID string,
 type ChatCompletion struct {
 	// A unique identifier for the chat completion.
 	ID string `json:"id,required"`
+	// OpenRouter's provider
+	Provider string `json:"provider,nullable"`
 	// A list of chat completion choices. Can be more than one if `n` is greater
 	// than 1.
 	Choices []ChatCompletionChoice `json:"choices,required"`
@@ -205,6 +207,7 @@ type ChatCompletion struct {
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID                respjson.Field
+		Provider          respjson.Field
 		Choices           respjson.Field
 		Created           respjson.Field
 		Model             respjson.Field
