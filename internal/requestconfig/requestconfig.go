@@ -18,11 +18,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/openai/openai-go/internal"
 	"github.com/openai/openai-go/internal/apierror"
 	"github.com/openai/openai-go/internal/apiform"
 	"github.com/openai/openai-go/internal/apiquery"
-	"github.com/tidwall/gjson"
 )
 
 func getDefaultHeaders() map[string]string {
@@ -537,7 +538,10 @@ func (cfg *RequestConfig) Execute() (err error) {
 		case *[]byte:
 			*dst = contents
 		default:
-			return fmt.Errorf("expected destination type of 'string' or '[]byte' for responses with content-type '%s' that is not 'application/json'", contentType)
+			err = json.NewDecoder(bytes.NewReader(contents)).Decode(cfg.ResponseBodyInto)
+			if err != nil {
+				return fmt.Errorf("error parsing response json: %w", err)
+			}
 		}
 		return nil
 	}
