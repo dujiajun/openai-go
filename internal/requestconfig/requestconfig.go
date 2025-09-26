@@ -540,7 +540,7 @@ func (cfg *RequestConfig) Execute() (err error) {
 		default:
 			err = json.NewDecoder(bytes.NewReader(contents)).Decode(cfg.ResponseBodyInto)
 			if err != nil {
-				return fmt.Errorf("error parsing response json: %w", err)
+				return fmt.Errorf("error parsing response json: %w, response: %s", err, string(contents))
 			}
 		}
 		return nil
@@ -553,7 +553,7 @@ func (cfg *RequestConfig) Execute() (err error) {
 	default:
 		err = json.NewDecoder(bytes.NewReader(contents)).Decode(cfg.ResponseBodyInto)
 		if err != nil {
-			return fmt.Errorf("error parsing response json: %w", err)
+			return fmt.Errorf("error parsing response json: %w, response: %s", err, string(contents))
 		}
 	}
 
