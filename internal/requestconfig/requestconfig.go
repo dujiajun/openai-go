@@ -18,11 +18,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tidwall/gjson"
+
 	"github.com/openai/openai-go/v2/internal"
 	"github.com/openai/openai-go/v2/internal/apierror"
 	"github.com/openai/openai-go/v2/internal/apiform"
 	"github.com/openai/openai-go/v2/internal/apiquery"
-	"github.com/tidwall/gjson"
 )
 
 func getDefaultHeaders() map[string]string {
@@ -544,7 +545,7 @@ func (cfg *RequestConfig) Execute() (err error) {
 		default:
 			err = json.NewDecoder(bytes.NewReader(contents)).Decode(cfg.ResponseBodyInto)
 			if err != nil {
-				return fmt.Errorf("error parsing response json: %w, response: %s", err, string(contents))
+				return fmt.Errorf("error parsing response json: %w, status: %d, header: %+v, response: %s", err, res.StatusCode, res.Header, string(contents))
 			}
 		}
 		return nil
@@ -557,7 +558,7 @@ func (cfg *RequestConfig) Execute() (err error) {
 	default:
 		err = json.NewDecoder(bytes.NewReader(contents)).Decode(cfg.ResponseBodyInto)
 		if err != nil {
-			return fmt.Errorf("error parsing response json: %w, response: %s", err, string(contents))
+			return fmt.Errorf("error parsing response json: %w, status: %d, header: %+v, response: %s", err, res.StatusCode, res.Header, string(contents))
 		}
 	}
 
