@@ -1,13 +1,17 @@
 # OpenAI Go API Library
 
-<a href="https://pkg.go.dev/github.com/openai/openai-go"><img src="https://pkg.go.dev/badge/github.com/openai/openai-go.svg" alt="Go Reference"></a>
+<!-- x-release-please-start-version -->
+
+<a href="https://pkg.go.dev/github.com/openai/openai-go/v2"><img src="https://pkg.go.dev/badge/github.com/openai/openai-go.svg" alt="Go Reference"></a>
+
+<!-- x-release-please-end -->
 
 The OpenAI Go library provides convenient access to the [OpenAI REST API](https://platform.openai.com/docs)
 from applications written in Go.
 
 > [!WARNING]
-> The latest version of this package uses a new design with significant breaking changes.
-> Please refer to the [migration guide](./MIGRATION.md) for more information on how to update your code.
+> The latest version of this package has small and limited breaking changes.
+> See the [changelog](CHANGELOG.md) for details.
 
 ## Installation
 
@@ -15,7 +19,7 @@ from applications written in Go.
 
 ```go
 import (
-	"github.com/openai/openai-go" // imported as openai
+	"github.com/openai/openai-go/v2" // imported as openai
 )
 ```
 
@@ -26,15 +30,14 @@ Or to pin the version:
 <!-- x-release-please-start-version -->
 
 ```sh
-go get -u 'github.com/openai/openai-go@v1.12.0'
+go get -u 'github.com/openai/openai-go/v2@v2.7.0'
 ```
 
 <!-- x-release-please-end -->
 
 ## Requirements
 
-This library requires Go 1.18+.
-
+This library requires Go 1.22+.
 ## Usage
 
 The full API of this library can be found in [api.md](api.md).
@@ -46,9 +49,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/shared"
+	"github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v2/shared"
 )
 
 func main() {
@@ -161,19 +164,21 @@ params := openai.ChatCompletionNewParams{
 	Messages: []openai.ChatCompletionMessageParamUnion{
 		openai.UserMessage(question),
 	},
-	Tools: []openai.ChatCompletionToolParam{
+	Tools: []openai.ChatCompletionToolUnionParam{
 		{
-			Function: openai.FunctionDefinitionParam{
-				Name:        "get_weather",
-				Description: openai.String("Get weather at the given location"),
-				Parameters: openai.FunctionParameters{
-					"type": "object",
-					"properties": map[string]interface{}{
-						"location": map[string]string{
-							"type": "string",
+			OfFunction: &openai.ChatCompletionFunctionToolParam{
+				Function: openai.FunctionDefinitionParam{
+					Name:        "get_weather",
+					Description: openai.String("Get weather at the given location"),
+					Parameters: openai.FunctionParameters{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"location": map[string]string{
+								"type": "string",
+							},
 						},
+						"required": []string{"location"},
 					},
-					"required": []string{"location"},
 				},
 			},
 		},
@@ -288,7 +293,6 @@ func main() {
 > See the [full structured outputs example](./examples/structured-outputs/main.go)
 
 </details>
-
 
 ### Request fields
 
@@ -589,7 +593,7 @@ client.Chat.Completions.New(
 				},
 			},
 		}},
-		Model: shared.ChatModelGPT4_1,
+		Model: shared.ChatModelGPT5,
 	},
 	// This sets the per-retry timeout
 	option.WithRequestTimeout(20*time.Second),
@@ -652,9 +656,9 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/webhooks"
+	"github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v2/webhooks"
 )
 
 func main() {
@@ -663,7 +667,7 @@ func main() {
 	)
 
 	r := gin.Default()
-	
+
 	r.POST("/webhook", func(c *gin.Context) {
 		body, err := io.ReadAll(c.Request.Body)
 		if err != nil {
@@ -712,8 +716,8 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v2/option"
 )
 
 func main() {
@@ -722,7 +726,7 @@ func main() {
 	)
 
 	r := gin.Default()
-	
+
 	r.POST("/webhook", func(c *gin.Context) {
 		body, err := io.ReadAll(c.Request.Body)
 		if err != nil {
@@ -737,7 +741,7 @@ func main() {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signature"})
 			return
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{"message": "ok"})
 	})
 
@@ -770,7 +774,7 @@ client.Chat.Completions.New(
 				},
 			},
 		}},
-		Model: shared.ChatModelGPT4_1,
+		Model: shared.ChatModelGPT5,
 	},
 	option.WithMaxRetries(5),
 )
@@ -794,7 +798,7 @@ chatCompletion, err := client.Chat.Completions.New(
 				},
 			},
 		}},
-		Model: shared.ChatModelGPT4_1,
+		Model: shared.ChatModelGPT5,
 	},
 	option.WithResponseInto(&response),
 )
@@ -903,15 +907,15 @@ package main
 
 import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/azure"
+	"github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v2/azure"
 )
 
 func main() {
 	const azureOpenAIEndpoint = "https://<azure-openai-resource>.openai.azure.com"
 
 	// The latest API versions, including previews, can be found here:
-	// ttps://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versionng
+	// https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versionng
 	const azureOpenAIAPIVersion = "2024-06-01"
 
 	tokenCredential, err := azidentity.NewDefaultAzureCredential(nil)
@@ -930,7 +934,6 @@ func main() {
 	)
 }
 ```
-
 
 ## Semantic versioning
 

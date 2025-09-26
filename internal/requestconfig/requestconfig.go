@@ -18,12 +18,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openai/openai-go/v2/internal"
+	"github.com/openai/openai-go/v2/internal/apierror"
+	"github.com/openai/openai-go/v2/internal/apiform"
+	"github.com/openai/openai-go/v2/internal/apiquery"
 	"github.com/tidwall/gjson"
-
-	"github.com/openai/openai-go/internal"
-	"github.com/openai/openai-go/internal/apierror"
-	"github.com/openai/openai-go/internal/apiform"
-	"github.com/openai/openai-go/internal/apiquery"
 )
 
 func getDefaultHeaders() map[string]string {
@@ -140,7 +139,7 @@ func NewRequestConfig(ctx context.Context, method string, u string, body any, ds
 	if body != nil && !hasSerializationFunc {
 		buf := new(bytes.Buffer)
 		enc := json.NewEncoder(buf)
-		enc.SetEscapeHTML(true)
+		enc.SetEscapeHTML(false)
 		if err := enc.Encode(body); err != nil {
 			return nil, err
 		}
@@ -464,6 +463,11 @@ func (cfg *RequestConfig) Execute() (err error) {
 		// Can't actually refresh the body, so we don't attempt to retry here
 		if cfg.Request.GetBody == nil && cfg.Request.Body != nil {
 			break
+		}
+
+		// Close the response body before retrying to prevent connection leaks
+		if res != nil && res.Body != nil {
+			res.Body.Close()
 		}
 
 		time.Sleep(retryDelay(res, retryCount))

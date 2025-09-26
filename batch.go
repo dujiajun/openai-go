@@ -8,16 +8,17 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 
-	"github.com/openai/openai-go/internal/apijson"
-	"github.com/openai/openai-go/internal/apiquery"
-	"github.com/openai/openai-go/internal/requestconfig"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/packages/pagination"
-	"github.com/openai/openai-go/packages/param"
-	"github.com/openai/openai-go/packages/respjson"
-	"github.com/openai/openai-go/shared"
-	"github.com/openai/openai-go/shared/constant"
+	"github.com/openai/openai-go/v2/internal/apijson"
+	"github.com/openai/openai-go/v2/internal/apiquery"
+	"github.com/openai/openai-go/v2/internal/requestconfig"
+	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v2/packages/pagination"
+	"github.com/openai/openai-go/v2/packages/param"
+	"github.com/openai/openai-go/v2/packages/respjson"
+	"github.com/openai/openai-go/v2/shared"
+	"github.com/openai/openai-go/v2/shared/constant"
 )
 
 // BatchService contains methods and other services that help with interacting with
@@ -41,7 +42,7 @@ func NewBatchService(opts ...option.RequestOption) (r BatchService) {
 
 // Creates and executes a batch from an uploaded file of requests
 func (r *BatchService) New(ctx context.Context, body BatchNewParams, opts ...option.RequestOption) (res *Batch, err error) {
-	opts = append(r.Options[:], opts...)
+	opts = slices.Concat(r.Options, opts)
 	path := "batches"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return
@@ -49,7 +50,7 @@ func (r *BatchService) New(ctx context.Context, body BatchNewParams, opts ...opt
 
 // Retrieves a batch.
 func (r *BatchService) Get(ctx context.Context, batchID string, opts ...option.RequestOption) (res *Batch, err error) {
-	opts = append(r.Options[:], opts...)
+	opts = slices.Concat(r.Options, opts)
 	if batchID == "" {
 		err = errors.New("missing required batch_id parameter")
 		return
@@ -62,7 +63,7 @@ func (r *BatchService) Get(ctx context.Context, batchID string, opts ...option.R
 // List your organization's batches.
 func (r *BatchService) List(ctx context.Context, query BatchListParams, opts ...option.RequestOption) (res *pagination.CursorPage[Batch], err error) {
 	var raw *http.Response
-	opts = append(r.Options[:], opts...)
+	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	path := "batches"
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
@@ -86,7 +87,7 @@ func (r *BatchService) ListAutoPaging(ctx context.Context, query BatchListParams
 // 10 minutes, before changing to `cancelled`, where it will have partial results
 // (if any) available in the output file.
 func (r *BatchService) Cancel(ctx context.Context, batchID string, opts ...option.RequestOption) (res *Batch, err error) {
-	opts = append(r.Options[:], opts...)
+	opts = slices.Concat(r.Options, opts)
 	if batchID == "" {
 		err = errors.New("missing required batch_id parameter")
 		return
@@ -290,6 +291,9 @@ type BatchNewParams struct {
 	// Keys are strings with a maximum length of 64 characters. Values are strings with
 	// a maximum length of 512 characters.
 	Metadata shared.Metadata `json:"metadata,omitzero"`
+	// The expiration policy for the output and/or error file that are generated for a
+	// batch.
+	OutputExpiresAfter BatchNewParamsOutputExpiresAfter `json:"output_expires_after,omitzero"`
 	paramObj
 }
 
@@ -321,6 +325,31 @@ const (
 	BatchNewParamsEndpointV1Embeddings      BatchNewParamsEndpoint = "/v1/embeddings"
 	BatchNewParamsEndpointV1Completions     BatchNewParamsEndpoint = "/v1/completions"
 )
+
+// The expiration policy for the output and/or error file that are generated for a
+// batch.
+//
+// The properties Anchor, Seconds are required.
+type BatchNewParamsOutputExpiresAfter struct {
+	// The number of seconds after the anchor time that the file will expire. Must be
+	// between 3600 (1 hour) and 2592000 (30 days).
+	Seconds int64 `json:"seconds,required"`
+	// Anchor timestamp after which the expiration policy applies. Supported anchors:
+	// `created_at`. Note that the anchor is the file creation time, not the time the
+	// batch is created.
+	//
+	// This field can be elided, and will marshal its zero value as "created_at".
+	Anchor constant.CreatedAt `json:"anchor,required"`
+	paramObj
+}
+
+func (r BatchNewParamsOutputExpiresAfter) MarshalJSON() (data []byte, err error) {
+	type shadow BatchNewParamsOutputExpiresAfter
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BatchNewParamsOutputExpiresAfter) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
 
 type BatchListParams struct {
 	// A cursor for use in pagination. `after` is an object ID that defines your place

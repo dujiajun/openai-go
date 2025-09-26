@@ -6,35 +6,40 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"slices"
 
-	"github.com/openai/openai-go/internal/requestconfig"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/responses"
-	"github.com/openai/openai-go/webhooks"
+	"github.com/openai/openai-go/v2/conversations"
+	"github.com/openai/openai-go/v2/internal/requestconfig"
+	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v2/realtime"
+	"github.com/openai/openai-go/v2/responses"
+	"github.com/openai/openai-go/v2/webhooks"
 )
 
 // Client creates a struct with services and top level methods that help with
 // interacting with the openai API. You should not instantiate this client
 // directly, and instead use the [NewClient] method instead.
 type Client struct {
-	Options      []option.RequestOption
-	Completions  CompletionService
-	Chat         ChatService
-	Embeddings   EmbeddingService
-	Files        FileService
-	Images       ImageService
-	Audio        AudioService
-	Moderations  ModerationService
-	Models       ModelService
-	FineTuning   FineTuningService
-	Graders      GraderService
-	VectorStores VectorStoreService
-	Webhooks     webhooks.WebhookService
-	Beta         BetaService
-	Batches      BatchService
-	Uploads      UploadService
-	Responses    responses.ResponseService
-	Containers   ContainerService
+	Options       []option.RequestOption
+	Completions   CompletionService
+	Chat          ChatService
+	Embeddings    EmbeddingService
+	Files         FileService
+	Images        ImageService
+	Audio         AudioService
+	Moderations   ModerationService
+	Models        ModelService
+	FineTuning    FineTuningService
+	Graders       GraderService
+	VectorStores  VectorStoreService
+	Webhooks      webhooks.WebhookService
+	Beta          BetaService
+	Batches       BatchService
+	Uploads       UploadService
+	Responses     responses.ResponseService
+	Realtime      realtime.RealtimeService
+	Conversations conversations.ConversationService
+	Containers    ContainerService
 }
 
 // DefaultClientOptions read from the environment (OPENAI_API_KEY, OPENAI_ORG_ID,
@@ -86,6 +91,8 @@ func NewClient(opts ...option.RequestOption) (r Client) {
 	r.Batches = NewBatchService(opts...)
 	r.Uploads = NewUploadService(opts...)
 	r.Responses = responses.NewResponseService(opts...)
+	r.Realtime = realtime.NewRealtimeService(opts...)
+	r.Conversations = conversations.NewConversationService(opts...)
 	r.Containers = NewContainerService(opts...)
 
 	return
@@ -123,7 +130,7 @@ func NewClient(opts ...option.RequestOption) (r Client) {
 // For even greater flexibility, see [option.WithResponseInto] and
 // [option.WithResponseBodyInto].
 func (r *Client) Execute(ctx context.Context, method string, path string, params any, res any, opts ...option.RequestOption) error {
-	opts = append(r.Options, opts...)
+	opts = slices.Concat(r.Options, opts)
 	return requestconfig.ExecuteNewRequest(ctx, method, path, params, res, opts...)
 }
 

@@ -9,17 +9,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 
-	"github.com/openai/openai-go/internal/apijson"
-	"github.com/openai/openai-go/internal/apiquery"
-	"github.com/openai/openai-go/internal/requestconfig"
-	"github.com/openai/openai-go/option"
-	"github.com/openai/openai-go/packages/pagination"
-	"github.com/openai/openai-go/packages/param"
-	"github.com/openai/openai-go/packages/respjson"
-	"github.com/openai/openai-go/packages/ssestream"
-	"github.com/openai/openai-go/shared"
-	"github.com/openai/openai-go/shared/constant"
+	"github.com/openai/openai-go/v2/internal/apijson"
+	"github.com/openai/openai-go/v2/internal/apiquery"
+	"github.com/openai/openai-go/v2/internal/requestconfig"
+	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v2/packages/pagination"
+	"github.com/openai/openai-go/v2/packages/param"
+	"github.com/openai/openai-go/v2/packages/respjson"
+	"github.com/openai/openai-go/v2/packages/ssestream"
+	"github.com/openai/openai-go/v2/shared"
+	"github.com/openai/openai-go/v2/shared/constant"
 )
 
 // ChatCompletionService contains methods and other services that help with
@@ -61,7 +62,7 @@ func NewChatCompletionService(opts ...option.RequestOption) (r ChatCompletionSer
 // unsupported parameters in reasoning models,
 // [refer to the reasoning guide](https://platform.openai.com/docs/guides/reasoning).
 func (r *ChatCompletionService) New(ctx context.Context, body ChatCompletionNewParams, opts ...option.RequestOption) (res *ChatCompletion, err error) {
-	opts = append(r.Options[:], opts...)
+	opts = slices.Concat(r.Options, opts)
 	path := "chat/completions"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return
@@ -89,7 +90,7 @@ func (r *ChatCompletionService) NewStreaming(ctx context.Context, body ChatCompl
 		raw *http.Response
 		err error
 	)
-	opts = append(r.Options[:], opts...)
+	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithJSONSet("stream", true)}, opts...)
 	path := "chat/completions"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &raw, opts...)
@@ -99,7 +100,7 @@ func (r *ChatCompletionService) NewStreaming(ctx context.Context, body ChatCompl
 // Get a stored chat completion. Only Chat Completions that have been created with
 // the `store` parameter set to `true` will be returned.
 func (r *ChatCompletionService) Get(ctx context.Context, completionID string, opts ...option.RequestOption) (res *ChatCompletion, err error) {
-	opts = append(r.Options[:], opts...)
+	opts = slices.Concat(r.Options, opts)
 	if completionID == "" {
 		err = errors.New("missing required completion_id parameter")
 		return
@@ -113,7 +114,7 @@ func (r *ChatCompletionService) Get(ctx context.Context, completionID string, op
 // with the `store` parameter set to `true` can be modified. Currently, the only
 // supported modification is to update the `metadata` field.
 func (r *ChatCompletionService) Update(ctx context.Context, completionID string, body ChatCompletionUpdateParams, opts ...option.RequestOption) (res *ChatCompletion, err error) {
-	opts = append(r.Options[:], opts...)
+	opts = slices.Concat(r.Options, opts)
 	if completionID == "" {
 		err = errors.New("missing required completion_id parameter")
 		return
@@ -127,7 +128,7 @@ func (r *ChatCompletionService) Update(ctx context.Context, completionID string,
 // the `store` parameter set to `true` will be returned.
 func (r *ChatCompletionService) List(ctx context.Context, query ChatCompletionListParams, opts ...option.RequestOption) (res *pagination.CursorPage[ChatCompletion], err error) {
 	var raw *http.Response
-	opts = append(r.Options[:], opts...)
+	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	path := "chat/completions"
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
@@ -151,7 +152,7 @@ func (r *ChatCompletionService) ListAutoPaging(ctx context.Context, query ChatCo
 // Delete a stored chat completion. Only Chat Completions that have been created
 // with the `store` parameter set to `true` can be deleted.
 func (r *ChatCompletionService) Delete(ctx context.Context, completionID string, opts ...option.RequestOption) (res *ChatCompletionDeleted, err error) {
-	opts = append(r.Options[:], opts...)
+	opts = slices.Concat(r.Options, opts)
 	if completionID == "" {
 		err = errors.New("missing required completion_id parameter")
 		return
@@ -185,9 +186,8 @@ type ChatCompletion struct {
 	//   - If set to 'default', then the request will be processed with the standard
 	//     pricing and performance for the selected model.
 	//   - If set to '[flex](https://platform.openai.com/docs/guides/flex-processing)' or
-	//     'priority', then the request will be processed with the corresponding service
-	//     tier. [Contact sales](https://openai.com/contact-sales) to learn more about
-	//     Priority processing.
+	//     '[priority](https://openai.com/api-priority-processing/)', then the request
+	//     will be processed with the corresponding service tier.
 	//   - When not set, the default behavior is 'auto'.
 	//
 	// When the `service_tier` parameter is set, the response body will include the
@@ -201,6 +201,8 @@ type ChatCompletion struct {
 	//
 	// Can be used in conjunction with the `seed` request parameter to understand when
 	// backend changes have been made that might impact determinism.
+	//
+	// Deprecated: deprecated
 	SystemFingerprint string `json:"system_fingerprint"`
 	// Usage statistics for the completion request.
 	Usage CompletionUsage `json:"usage"`
@@ -288,9 +290,8 @@ func (r *ChatCompletionChoiceLogprobs) UnmarshalJSON(data []byte) error {
 //   - If set to 'default', then the request will be processed with the standard
 //     pricing and performance for the selected model.
 //   - If set to '[flex](https://platform.openai.com/docs/guides/flex-processing)' or
-//     'priority', then the request will be processed with the corresponding service
-//     tier. [Contact sales](https://openai.com/contact-sales) to learn more about
-//     Priority processing.
+//     '[priority](https://openai.com/api-priority-processing/)', then the request
+//     will be processed with the corresponding service tier.
 //   - When not set, the default behavior is 'auto'.
 //
 // When the `service_tier` parameter is set, the response body will include the
@@ -306,6 +307,27 @@ const (
 	ChatCompletionServiceTierScale    ChatCompletionServiceTier = "scale"
 	ChatCompletionServiceTierPriority ChatCompletionServiceTier = "priority"
 )
+
+// Constrains the tools available to the model to a pre-defined set.
+//
+// The properties AllowedTools, Type are required.
+type ChatCompletionAllowedToolChoiceParam struct {
+	// Constrains the tools available to the model to a pre-defined set.
+	AllowedTools ChatCompletionAllowedToolsParam `json:"allowed_tools,omitzero,required"`
+	// Allowed tool configuration type. Always `allowed_tools`.
+	//
+	// This field can be elided, and will marshal its zero value as "allowed_tools".
+	Type constant.AllowedTools `json:"type,required"`
+	paramObj
+}
+
+func (r ChatCompletionAllowedToolChoiceParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionAllowedToolChoiceParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionAllowedToolChoiceParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
 
 // Messages sent by the model in response to user messages.
 //
@@ -332,7 +354,7 @@ type ChatCompletionAssistantMessageParam struct {
 	// Deprecated: deprecated
 	FunctionCall ChatCompletionAssistantMessageParamFunctionCall `json:"function_call,omitzero"`
 	// The tool calls generated by the model, such as function calls.
-	ToolCalls []ChatCompletionMessageToolCallParam `json:"tool_calls,omitzero"`
+	ToolCalls []ChatCompletionMessageToolCallUnionParam `json:"tool_calls,omitzero"`
 	// The role of the messages author, in this case `assistant`.
 	//
 	// This field can be elided, and will marshal its zero value as "assistant".
@@ -557,6 +579,8 @@ const (
 	ChatCompletionAudioParamVoiceSage    ChatCompletionAudioParamVoice = "sage"
 	ChatCompletionAudioParamVoiceShimmer ChatCompletionAudioParamVoice = "shimmer"
 	ChatCompletionAudioParamVoiceVerse   ChatCompletionAudioParamVoice = "verse"
+	ChatCompletionAudioParamVoiceMarin   ChatCompletionAudioParamVoice = "marin"
+	ChatCompletionAudioParamVoiceCedar   ChatCompletionAudioParamVoice = "cedar"
 )
 
 // Represents a streamed chunk of a chat completion response returned by the model,
@@ -586,9 +610,8 @@ type ChatCompletionChunk struct {
 	//   - If set to 'default', then the request will be processed with the standard
 	//     pricing and performance for the selected model.
 	//   - If set to '[flex](https://platform.openai.com/docs/guides/flex-processing)' or
-	//     'priority', then the request will be processed with the corresponding service
-	//     tier. [Contact sales](https://openai.com/contact-sales) to learn more about
-	//     Priority processing.
+	//     '[priority](https://openai.com/api-priority-processing/)', then the request
+	//     will be processed with the corresponding service tier.
 	//   - When not set, the default behavior is 'auto'.
 	//
 	// When the `service_tier` parameter is set, the response body will include the
@@ -601,6 +624,8 @@ type ChatCompletionChunk struct {
 	// This fingerprint represents the backend configuration that the model runs with.
 	// Can be used in conjunction with the `seed` request parameter to understand when
 	// backend changes have been made that might impact determinism.
+	//
+	// Deprecated: deprecated
 	SystemFingerprint string `json:"system_fingerprint"`
 	// An optional field that will only be present when you set
 	// `stream_options: {"include_usage": true}` in your request. When present, it
@@ -808,9 +833,8 @@ func (r *ChatCompletionChunkChoiceLogprobs) UnmarshalJSON(data []byte) error {
 //   - If set to 'default', then the request will be processed with the standard
 //     pricing and performance for the selected model.
 //   - If set to '[flex](https://platform.openai.com/docs/guides/flex-processing)' or
-//     'priority', then the request will be processed with the corresponding service
-//     tier. [Contact sales](https://openai.com/contact-sales) to learn more about
-//     Priority processing.
+//     '[priority](https://openai.com/api-priority-processing/)', then the request
+//     will be processed with the corresponding service tier.
 //   - When not set, the default behavior is 'auto'.
 //
 // When the `service_tier` parameter is set, the response body will include the
@@ -1195,6 +1219,171 @@ func (r *ChatCompletionContentPartTextParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// A custom tool that processes input using a specified format.
+//
+// The properties Custom, Type are required.
+type ChatCompletionCustomToolParam struct {
+	// Properties of the custom tool.
+	Custom ChatCompletionCustomToolCustomParam `json:"custom,omitzero,required"`
+	// The type of the custom tool. Always `custom`.
+	//
+	// This field can be elided, and will marshal its zero value as "custom".
+	Type constant.Custom `json:"type,required"`
+	paramObj
+}
+
+func (r ChatCompletionCustomToolParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionCustomToolParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionCustomToolParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Properties of the custom tool.
+//
+// The property Name is required.
+type ChatCompletionCustomToolCustomParam struct {
+	// The name of the custom tool, used to identify it in tool calls.
+	Name string `json:"name,required"`
+	// Optional description of the custom tool, used to provide more context.
+	Description param.Opt[string] `json:"description,omitzero"`
+	// The input format for the custom tool. Default is unconstrained text.
+	Format ChatCompletionCustomToolCustomFormatUnionParam `json:"format,omitzero"`
+	paramObj
+}
+
+func (r ChatCompletionCustomToolCustomParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionCustomToolCustomParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionCustomToolCustomParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ChatCompletionCustomToolCustomFormatUnionParam struct {
+	OfText    *ChatCompletionCustomToolCustomFormatTextParam    `json:",omitzero,inline"`
+	OfGrammar *ChatCompletionCustomToolCustomFormatGrammarParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ChatCompletionCustomToolCustomFormatUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfText, u.OfGrammar)
+}
+func (u *ChatCompletionCustomToolCustomFormatUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *ChatCompletionCustomToolCustomFormatUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfText) {
+		return u.OfText
+	} else if !param.IsOmitted(u.OfGrammar) {
+		return u.OfGrammar
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionCustomToolCustomFormatUnionParam) GetGrammar() *ChatCompletionCustomToolCustomFormatGrammarGrammarParam {
+	if vt := u.OfGrammar; vt != nil {
+		return &vt.Grammar
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionCustomToolCustomFormatUnionParam) GetType() *string {
+	if vt := u.OfText; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfGrammar; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ChatCompletionCustomToolCustomFormatUnionParam](
+		"type",
+		apijson.Discriminator[ChatCompletionCustomToolCustomFormatTextParam]("text"),
+		apijson.Discriminator[ChatCompletionCustomToolCustomFormatGrammarParam]("grammar"),
+	)
+}
+
+func NewChatCompletionCustomToolCustomFormatTextParam() ChatCompletionCustomToolCustomFormatTextParam {
+	return ChatCompletionCustomToolCustomFormatTextParam{
+		Type: "text",
+	}
+}
+
+// Unconstrained free-form text.
+//
+// This struct has a constant value, construct it with
+// [NewChatCompletionCustomToolCustomFormatTextParam].
+type ChatCompletionCustomToolCustomFormatTextParam struct {
+	// Unconstrained text format. Always `text`.
+	Type constant.Text `json:"type,required"`
+	paramObj
+}
+
+func (r ChatCompletionCustomToolCustomFormatTextParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionCustomToolCustomFormatTextParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionCustomToolCustomFormatTextParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A grammar defined by the user.
+//
+// The properties Grammar, Type are required.
+type ChatCompletionCustomToolCustomFormatGrammarParam struct {
+	// Your chosen grammar.
+	Grammar ChatCompletionCustomToolCustomFormatGrammarGrammarParam `json:"grammar,omitzero,required"`
+	// Grammar format. Always `grammar`.
+	//
+	// This field can be elided, and will marshal its zero value as "grammar".
+	Type constant.Grammar `json:"type,required"`
+	paramObj
+}
+
+func (r ChatCompletionCustomToolCustomFormatGrammarParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionCustomToolCustomFormatGrammarParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionCustomToolCustomFormatGrammarParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Your chosen grammar.
+//
+// The properties Definition, Syntax are required.
+type ChatCompletionCustomToolCustomFormatGrammarGrammarParam struct {
+	// The grammar definition.
+	Definition string `json:"definition,required"`
+	// The syntax of the grammar definition. One of `lark` or `regex`.
+	//
+	// Any of "lark", "regex".
+	Syntax string `json:"syntax,omitzero,required"`
+	paramObj
+}
+
+func (r ChatCompletionCustomToolCustomFormatGrammarGrammarParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionCustomToolCustomFormatGrammarGrammarParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionCustomToolCustomFormatGrammarGrammarParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ChatCompletionCustomToolCustomFormatGrammarGrammarParam](
+		"syntax", "lark", "regex",
+	)
+}
+
 type ChatCompletionDeleted struct {
 	// The ID of the chat completion that was deleted.
 	ID string `json:"id,required"`
@@ -1310,6 +1499,26 @@ func (r *ChatCompletionFunctionMessageParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// A function tool that can be used to generate a response.
+//
+// The properties Function, Type are required.
+type ChatCompletionFunctionToolParam struct {
+	Function shared.FunctionDefinitionParam `json:"function,omitzero,required"`
+	// The type of the tool. Currently, only `function` is supported.
+	//
+	// This field can be elided, and will marshal its zero value as "function".
+	Type constant.Function `json:"type,required"`
+	paramObj
+}
+
+func (r ChatCompletionFunctionToolParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionFunctionToolParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionFunctionToolParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // A chat completion message generated by the model.
 type ChatCompletionMessage struct {
 	// The contents of the message.
@@ -1333,7 +1542,7 @@ type ChatCompletionMessage struct {
 	// Deprecated: deprecated
 	FunctionCall ChatCompletionMessageFunctionCall `json:"function_call"`
 	// The tool calls generated by the model, such as function calls.
-	ToolCalls []ChatCompletionMessageToolCall `json:"tool_calls"`
+	ToolCalls []ChatCompletionMessageToolCallUnion `json:"tool_calls"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Content          respjson.Field
@@ -1388,11 +1597,28 @@ func (r ChatCompletionMessage) ToAssistantMessageParam() ChatCompletionAssistant
 	p.FunctionCall.Name = r.FunctionCall.Name
 
 	if len(r.ToolCalls) > 0 {
-		p.ToolCalls = make([]ChatCompletionMessageToolCallParam, len(r.ToolCalls))
-		for i, v := range r.ToolCalls {
-			p.ToolCalls[i].ID = v.ID
-			p.ToolCalls[i].Function.Arguments = v.Function.Arguments
-			p.ToolCalls[i].Function.Name = v.Function.Name
+		for _, v := range r.ToolCalls {
+			u := ChatCompletionMessageToolCallUnionParam{}
+			switch v.AsAny().(type) {
+			case ChatCompletionMessageFunctionToolCall:
+				u.OfFunction = &ChatCompletionMessageFunctionToolCallParam{
+					ID: v.ID,
+					Function: ChatCompletionMessageFunctionToolCallFunctionParam{
+						Arguments: v.Function.Arguments,
+						Name:      v.Function.Name,
+					},
+				}
+			case ChatCompletionMessageCustomToolCall:
+				u.OfCustom = &ChatCompletionMessageCustomToolCallParam{
+					ID: v.ID,
+					Custom: ChatCompletionMessageCustomToolCallCustomParam{
+						Input: v.Custom.Input,
+						Name:  v.Custom.Name,
+					},
+				}
+			}
+
+			p.ToolCalls = append(p.ToolCalls, u)
 		}
 	}
 	return p
@@ -1470,6 +1696,206 @@ type ChatCompletionMessageFunctionCall struct {
 // Returns the unmodified JSON received from the API
 func (r ChatCompletionMessageFunctionCall) RawJSON() string { return r.JSON.raw }
 func (r *ChatCompletionMessageFunctionCall) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A call to a custom tool created by the model.
+type ChatCompletionMessageCustomToolCall struct {
+	// The ID of the tool call.
+	ID string `json:"id,required"`
+	// The custom tool that the model called.
+	Custom ChatCompletionMessageCustomToolCallCustom `json:"custom,required"`
+	// The type of the tool. Always `custom`.
+	Type constant.Custom `json:"type,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Custom      respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ChatCompletionMessageCustomToolCall) RawJSON() string { return r.JSON.raw }
+func (r *ChatCompletionMessageCustomToolCall) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ChatCompletionMessageCustomToolCall to a
+// ChatCompletionMessageCustomToolCallParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ChatCompletionMessageCustomToolCallParam.Overrides()
+func (r ChatCompletionMessageCustomToolCall) ToParam() ChatCompletionMessageCustomToolCallParam {
+	return param.Override[ChatCompletionMessageCustomToolCallParam](json.RawMessage(r.RawJSON()))
+}
+
+// The custom tool that the model called.
+type ChatCompletionMessageCustomToolCallCustom struct {
+	// The input for the custom tool call generated by the model.
+	Input string `json:"input,required"`
+	// The name of the custom tool to call.
+	Name string `json:"name,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Input       respjson.Field
+		Name        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ChatCompletionMessageCustomToolCallCustom) RawJSON() string { return r.JSON.raw }
+func (r *ChatCompletionMessageCustomToolCallCustom) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A call to a custom tool created by the model.
+//
+// The properties ID, Custom, Type are required.
+type ChatCompletionMessageCustomToolCallParam struct {
+	// The ID of the tool call.
+	ID string `json:"id,required"`
+	// The custom tool that the model called.
+	Custom ChatCompletionMessageCustomToolCallCustomParam `json:"custom,omitzero,required"`
+	// The type of the tool. Always `custom`.
+	//
+	// This field can be elided, and will marshal its zero value as "custom".
+	Type constant.Custom `json:"type,required"`
+	paramObj
+}
+
+func (r ChatCompletionMessageCustomToolCallParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionMessageCustomToolCallParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionMessageCustomToolCallParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The custom tool that the model called.
+//
+// The properties Input, Name are required.
+type ChatCompletionMessageCustomToolCallCustomParam struct {
+	// The input for the custom tool call generated by the model.
+	Input string `json:"input,required"`
+	// The name of the custom tool to call.
+	Name string `json:"name,required"`
+	paramObj
+}
+
+func (r ChatCompletionMessageCustomToolCallCustomParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionMessageCustomToolCallCustomParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionMessageCustomToolCallCustomParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A call to a function tool created by the model.
+type ChatCompletionMessageFunctionToolCall struct {
+	// The ID of the tool call.
+	ID string `json:"id,required"`
+	// The function that the model called.
+	Function ChatCompletionMessageFunctionToolCallFunction `json:"function,required"`
+	// The type of the tool. Currently, only `function` is supported.
+	Type constant.Function `json:"type,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Function    respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ChatCompletionMessageFunctionToolCall) RawJSON() string { return r.JSON.raw }
+func (r *ChatCompletionMessageFunctionToolCall) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ChatCompletionMessageFunctionToolCall to a
+// ChatCompletionMessageFunctionToolCallParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ChatCompletionMessageFunctionToolCallParam.Overrides()
+func (r ChatCompletionMessageFunctionToolCall) ToParam() ChatCompletionMessageFunctionToolCallParam {
+	return param.Override[ChatCompletionMessageFunctionToolCallParam](json.RawMessage(r.RawJSON()))
+}
+
+// The function that the model called.
+type ChatCompletionMessageFunctionToolCallFunction struct {
+	// The arguments to call the function with, as generated by the model in JSON
+	// format. Note that the model does not always generate valid JSON, and may
+	// hallucinate parameters not defined by your function schema. Validate the
+	// arguments in your code before calling your function.
+	Arguments string `json:"arguments,required"`
+	// The name of the function to call.
+	Name string `json:"name,required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Arguments   respjson.Field
+		Name        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ChatCompletionMessageFunctionToolCallFunction) RawJSON() string { return r.JSON.raw }
+func (r *ChatCompletionMessageFunctionToolCallFunction) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A call to a function tool created by the model.
+//
+// The properties ID, Function, Type are required.
+type ChatCompletionMessageFunctionToolCallParam struct {
+	// The ID of the tool call.
+	ID string `json:"id,required"`
+	// The function that the model called.
+	Function ChatCompletionMessageFunctionToolCallFunctionParam `json:"function,omitzero,required"`
+	// The type of the tool. Currently, only `function` is supported.
+	//
+	// This field can be elided, and will marshal its zero value as "function".
+	Type constant.Function `json:"type,required"`
+	paramObj
+}
+
+func (r ChatCompletionMessageFunctionToolCallParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionMessageFunctionToolCallParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionMessageFunctionToolCallParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The function that the model called.
+//
+// The properties Arguments, Name are required.
+type ChatCompletionMessageFunctionToolCallFunctionParam struct {
+	// The arguments to call the function with, as generated by the model in JSON
+	// format. Note that the model does not always generate valid JSON, and may
+	// hallucinate parameters not defined by your function schema. Validate the
+	// arguments in your code before calling your function.
+	Arguments string `json:"arguments,required"`
+	// The name of the function to call.
+	Name string `json:"name,required"`
+	paramObj
+}
+
+func (r ChatCompletionMessageFunctionToolCallFunctionParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionMessageFunctionToolCallFunctionParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionMessageFunctionToolCallFunctionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -1616,7 +2042,7 @@ func (u ChatCompletionMessageParamUnion) GetRefusal() *string {
 }
 
 // Returns a pointer to the underlying variant's property, if present.
-func (u ChatCompletionMessageParamUnion) GetToolCalls() []ChatCompletionMessageToolCallParam {
+func (u ChatCompletionMessageParamUnion) GetToolCalls() []ChatCompletionMessageToolCallUnionParam {
 	if vt := u.OfAssistant; vt != nil {
 		return vt.ToolCalls
 	}
@@ -1728,104 +2154,153 @@ func init() {
 	)
 }
 
-type ChatCompletionMessageToolCall struct {
-	// The ID of the tool call.
-	ID string `json:"id,required"`
-	// The function that the model called.
-	Function ChatCompletionMessageToolCallFunction `json:"function,required"`
-	// The type of the tool. Currently, only `function` is supported.
-	Type constant.Function `json:"type,required"`
-	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
-	JSON struct {
-		ID          respjson.Field
-		Function    respjson.Field
-		Type        respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+// ChatCompletionMessageToolCallUnion contains all possible properties and values
+// from [ChatCompletionMessageFunctionToolCall],
+// [ChatCompletionMessageCustomToolCall].
+//
+// Use the [ChatCompletionMessageToolCallUnion.AsAny] method to switch on the
+// variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ChatCompletionMessageToolCallUnion struct {
+	ID string `json:"id"`
+	// This field is from variant [ChatCompletionMessageFunctionToolCall].
+	Function ChatCompletionMessageFunctionToolCallFunction `json:"function"`
+	// Any of "function", "custom".
+	Type string `json:"type"`
+	// This field is from variant [ChatCompletionMessageCustomToolCall].
+	Custom ChatCompletionMessageCustomToolCallCustom `json:"custom"`
+	JSON   struct {
+		ID       respjson.Field
+		Function respjson.Field
+		Type     respjson.Field
+		Custom   respjson.Field
+		raw      string
 	} `json:"-"`
 }
 
+// anyChatCompletionMessageToolCall is implemented by each variant of
+// [ChatCompletionMessageToolCallUnion] to add type safety for the return type of
+// [ChatCompletionMessageToolCallUnion.AsAny]
+type anyChatCompletionMessageToolCall interface {
+	implChatCompletionMessageToolCallUnion()
+}
+
+func (ChatCompletionMessageFunctionToolCall) implChatCompletionMessageToolCallUnion() {}
+func (ChatCompletionMessageCustomToolCall) implChatCompletionMessageToolCallUnion()   {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ChatCompletionMessageToolCallUnion.AsAny().(type) {
+//	case openai.ChatCompletionMessageFunctionToolCall:
+//	case openai.ChatCompletionMessageCustomToolCall:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ChatCompletionMessageToolCallUnion) AsAny() anyChatCompletionMessageToolCall {
+	switch u.Type {
+	case "function":
+		return u.AsFunction()
+	case "custom":
+		return u.AsCustom()
+	}
+	return nil
+}
+
+func (u ChatCompletionMessageToolCallUnion) AsFunction() (v ChatCompletionMessageFunctionToolCall) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ChatCompletionMessageToolCallUnion) AsCustom() (v ChatCompletionMessageCustomToolCall) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
 // Returns the unmodified JSON received from the API
-func (r ChatCompletionMessageToolCall) RawJSON() string { return r.JSON.raw }
-func (r *ChatCompletionMessageToolCall) UnmarshalJSON(data []byte) error {
+func (u ChatCompletionMessageToolCallUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ChatCompletionMessageToolCallUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// ToParam converts this ChatCompletionMessageToolCall to a
-// ChatCompletionMessageToolCallParam.
+// ToParam converts this ChatCompletionMessageToolCallUnion to a
+// ChatCompletionMessageToolCallUnionParam.
 //
 // Warning: the fields of the param type will not be present. ToParam should only
 // be used at the last possible moment before sending a request. Test for this with
-// ChatCompletionMessageToolCallParam.Overrides()
-func (r ChatCompletionMessageToolCall) ToParam() ChatCompletionMessageToolCallParam {
-	return param.Override[ChatCompletionMessageToolCallParam](json.RawMessage(r.RawJSON()))
+// ChatCompletionMessageToolCallUnionParam.Overrides()
+func (r ChatCompletionMessageToolCallUnion) ToParam() ChatCompletionMessageToolCallUnionParam {
+	return param.Override[ChatCompletionMessageToolCallUnionParam](json.RawMessage(r.RawJSON()))
 }
 
-// The function that the model called.
-type ChatCompletionMessageToolCallFunction struct {
-	// The arguments to call the function with, as generated by the model in JSON
-	// format. Note that the model does not always generate valid JSON, and may
-	// hallucinate parameters not defined by your function schema. Validate the
-	// arguments in your code before calling your function.
-	Arguments string `json:"arguments,required"`
-	// The name of the function to call.
-	Name string `json:"name,required"`
-	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
-	JSON struct {
-		Arguments   respjson.Field
-		Name        respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
-	} `json:"-"`
-}
-
-// Returns the unmodified JSON received from the API
-func (r ChatCompletionMessageToolCallFunction) RawJSON() string { return r.JSON.raw }
-func (r *ChatCompletionMessageToolCallFunction) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-// The properties ID, Function, Type are required.
-type ChatCompletionMessageToolCallParam struct {
-	// The ID of the tool call.
-	ID string `json:"id,required"`
-	// The function that the model called.
-	Function ChatCompletionMessageToolCallFunctionParam `json:"function,omitzero,required"`
-	// The type of the tool. Currently, only `function` is supported.
-	//
-	// This field can be elided, and will marshal its zero value as "function".
-	Type constant.Function `json:"type,required"`
-	paramObj
-}
-
-func (r ChatCompletionMessageToolCallParam) MarshalJSON() (data []byte, err error) {
-	type shadow ChatCompletionMessageToolCallParam
-	return param.MarshalObject(r, (*shadow)(&r))
-}
-func (r *ChatCompletionMessageToolCallParam) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-// The function that the model called.
+// Only one field can be non-zero.
 //
-// The properties Arguments, Name are required.
-type ChatCompletionMessageToolCallFunctionParam struct {
-	// The arguments to call the function with, as generated by the model in JSON
-	// format. Note that the model does not always generate valid JSON, and may
-	// hallucinate parameters not defined by your function schema. Validate the
-	// arguments in your code before calling your function.
-	Arguments string `json:"arguments,required"`
-	// The name of the function to call.
-	Name string `json:"name,required"`
-	paramObj
+// Use [param.IsOmitted] to confirm if a field is set.
+type ChatCompletionMessageToolCallUnionParam struct {
+	OfFunction *ChatCompletionMessageFunctionToolCallParam `json:",omitzero,inline"`
+	OfCustom   *ChatCompletionMessageCustomToolCallParam   `json:",omitzero,inline"`
+	paramUnion
 }
 
-func (r ChatCompletionMessageToolCallFunctionParam) MarshalJSON() (data []byte, err error) {
-	type shadow ChatCompletionMessageToolCallFunctionParam
-	return param.MarshalObject(r, (*shadow)(&r))
+func (u ChatCompletionMessageToolCallUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfFunction, u.OfCustom)
 }
-func (r *ChatCompletionMessageToolCallFunctionParam) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+func (u *ChatCompletionMessageToolCallUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *ChatCompletionMessageToolCallUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfFunction) {
+		return u.OfFunction
+	} else if !param.IsOmitted(u.OfCustom) {
+		return u.OfCustom
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionMessageToolCallUnionParam) GetFunction() *ChatCompletionMessageFunctionToolCallFunctionParam {
+	if vt := u.OfFunction; vt != nil {
+		return &vt.Function
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionMessageToolCallUnionParam) GetCustom() *ChatCompletionMessageCustomToolCallCustomParam {
+	if vt := u.OfCustom; vt != nil {
+		return &vt.Custom
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionMessageToolCallUnionParam) GetID() *string {
+	if vt := u.OfFunction; vt != nil {
+		return (*string)(&vt.ID)
+	} else if vt := u.OfCustom; vt != nil {
+		return (*string)(&vt.ID)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionMessageToolCallUnionParam) GetType() *string {
+	if vt := u.OfFunction; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfCustom; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ChatCompletionMessageToolCallUnionParam](
+		"type",
+		apijson.Discriminator[ChatCompletionMessageFunctionToolCallParam]("function"),
+		apijson.Discriminator[ChatCompletionMessageCustomToolCallParam]("custom"),
+	)
 }
 
 // Specifies a tool the model should use. Use to force the model to call a specific
@@ -1834,7 +2309,7 @@ func (r *ChatCompletionMessageToolCallFunctionParam) UnmarshalJSON(data []byte) 
 // The properties Function, Type are required.
 type ChatCompletionNamedToolChoiceParam struct {
 	Function ChatCompletionNamedToolChoiceFunctionParam `json:"function,omitzero,required"`
-	// The type of the tool. Currently, only `function` is supported.
+	// For function calling, the type is always `function`.
 	//
 	// This field can be elided, and will marshal its zero value as "function".
 	Type constant.Function `json:"type,required"`
@@ -1861,6 +2336,42 @@ func (r ChatCompletionNamedToolChoiceFunctionParam) MarshalJSON() (data []byte, 
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ChatCompletionNamedToolChoiceFunctionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Specifies a tool the model should use. Use to force the model to call a specific
+// custom tool.
+//
+// The properties Custom, Type are required.
+type ChatCompletionNamedToolChoiceCustomParam struct {
+	Custom ChatCompletionNamedToolChoiceCustomCustomParam `json:"custom,omitzero,required"`
+	// For custom tool calling, the type is always `custom`.
+	//
+	// This field can be elided, and will marshal its zero value as "custom".
+	Type constant.Custom `json:"type,required"`
+	paramObj
+}
+
+func (r ChatCompletionNamedToolChoiceCustomParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionNamedToolChoiceCustomParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionNamedToolChoiceCustomParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The property Name is required.
+type ChatCompletionNamedToolChoiceCustomCustomParam struct {
+	// The name of the custom tool to call.
+	Name string `json:"name,required"`
+	paramObj
+}
+
+func (r ChatCompletionNamedToolChoiceCustomCustomParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionNamedToolChoiceCustomCustomParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionNamedToolChoiceCustomCustomParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -1974,6 +2485,13 @@ func (r *ChatCompletionStoreMessageContentPartUnion) UnmarshalJSON(data []byte) 
 
 // Options for streaming response. Only set this when you set `stream: true`.
 type ChatCompletionStreamOptionsParam struct {
+	// When true, stream obfuscation will be enabled. Stream obfuscation adds random
+	// characters to an `obfuscation` field on streaming delta events to normalize
+	// payload sizes as a mitigation to certain side-channel attacks. These obfuscation
+	// fields are included by default, but add a small amount of overhead to the data
+	// stream. You can set `include_obfuscation` to false to optimize for bandwidth if
+	// you trust the network links between your application and the OpenAI API.
+	IncludeObfuscation param.Opt[bool] `json:"include_obfuscation,omitzero"`
 	// If set, an additional chunk will be streamed before the `data: [DONE]` message.
 	// The `usage` field on this chunk shows the token usage statistics for the entire
 	// request, and the `choices` field will always be an empty array.
@@ -2105,28 +2623,93 @@ func (r *ChatCompletionTokenLogprobTopLogprob) UnmarshalJSON(data []byte) error 
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// The properties Function, Type are required.
-type ChatCompletionToolParam struct {
-	Function shared.FunctionDefinitionParam `json:"function,omitzero,required"`
-	// The type of the tool. Currently, only `function` is supported.
-	//
-	// This field can be elided, and will marshal its zero value as "function".
-	Type constant.Function `json:"type,required"`
-	paramObj
+func ChatCompletionFunctionTool(function shared.FunctionDefinitionParam) ChatCompletionToolUnionParam {
+	var variant ChatCompletionFunctionToolParam
+	variant.Function = function
+	return ChatCompletionToolUnionParam{OfFunction: &variant}
 }
 
-func (r ChatCompletionToolParam) MarshalJSON() (data []byte, err error) {
-	type shadow ChatCompletionToolParam
-	return param.MarshalObject(r, (*shadow)(&r))
-}
-func (r *ChatCompletionToolParam) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+func ChatCompletionCustomTool(custom ChatCompletionCustomToolCustomParam) ChatCompletionToolUnionParam {
+	var variant ChatCompletionCustomToolParam
+	variant.Custom = custom
+	return ChatCompletionToolUnionParam{OfCustom: &variant}
 }
 
-func ChatCompletionToolChoiceOptionParamOfChatCompletionNamedToolChoice(function ChatCompletionNamedToolChoiceFunctionParam) ChatCompletionToolChoiceOptionUnionParam {
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ChatCompletionToolUnionParam struct {
+	OfFunction *ChatCompletionFunctionToolParam `json:",omitzero,inline"`
+	OfCustom   *ChatCompletionCustomToolParam   `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ChatCompletionToolUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfFunction, u.OfCustom)
+}
+func (u *ChatCompletionToolUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *ChatCompletionToolUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfFunction) {
+		return u.OfFunction
+	} else if !param.IsOmitted(u.OfCustom) {
+		return u.OfCustom
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionToolUnionParam) GetFunction() *shared.FunctionDefinitionParam {
+	if vt := u.OfFunction; vt != nil {
+		return &vt.Function
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionToolUnionParam) GetCustom() *ChatCompletionCustomToolCustomParam {
+	if vt := u.OfCustom; vt != nil {
+		return &vt.Custom
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionToolUnionParam) GetType() *string {
+	if vt := u.OfFunction; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfCustom; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ChatCompletionToolUnionParam](
+		"type",
+		apijson.Discriminator[ChatCompletionFunctionToolParam]("function"),
+		apijson.Discriminator[ChatCompletionCustomToolParam]("custom"),
+	)
+}
+
+func ToolChoiceOptionAllowedTools(allowedTools ChatCompletionAllowedToolsParam) ChatCompletionToolChoiceOptionUnionParam {
+	var variant ChatCompletionAllowedToolChoiceParam
+	variant.AllowedTools = allowedTools
+	return ChatCompletionToolChoiceOptionUnionParam{OfAllowedTools: &variant}
+}
+
+func ToolChoiceOptionFunctionToolChoice(function ChatCompletionNamedToolChoiceFunctionParam) ChatCompletionToolChoiceOptionUnionParam {
 	var variant ChatCompletionNamedToolChoiceParam
 	variant.Function = function
-	return ChatCompletionToolChoiceOptionUnionParam{OfChatCompletionNamedToolChoice: &variant}
+	return ChatCompletionToolChoiceOptionUnionParam{OfFunctionToolChoice: &variant}
+}
+
+func ToolChoiceOptionCustomToolChoice(custom ChatCompletionNamedToolChoiceCustomCustomParam) ChatCompletionToolChoiceOptionUnionParam {
+	var variant ChatCompletionNamedToolChoiceCustomParam
+	variant.Custom = custom
+	return ChatCompletionToolChoiceOptionUnionParam{OfCustomToolChoice: &variant}
 }
 
 // Only one field can be non-zero.
@@ -2134,13 +2717,15 @@ func ChatCompletionToolChoiceOptionParamOfChatCompletionNamedToolChoice(function
 // Use [param.IsOmitted] to confirm if a field is set.
 type ChatCompletionToolChoiceOptionUnionParam struct {
 	// Check if union is this variant with !param.IsOmitted(union.OfAuto)
-	OfAuto                          param.Opt[string]                   `json:",omitzero,inline"`
-	OfChatCompletionNamedToolChoice *ChatCompletionNamedToolChoiceParam `json:",omitzero,inline"`
+	OfAuto               param.Opt[string]                         `json:",omitzero,inline"`
+	OfAllowedTools       *ChatCompletionAllowedToolChoiceParam     `json:",omitzero,inline"`
+	OfFunctionToolChoice *ChatCompletionNamedToolChoiceParam       `json:",omitzero,inline"`
+	OfCustomToolChoice   *ChatCompletionNamedToolChoiceCustomParam `json:",omitzero,inline"`
 	paramUnion
 }
 
 func (u ChatCompletionToolChoiceOptionUnionParam) MarshalJSON() ([]byte, error) {
-	return param.MarshalUnion(u, u.OfAuto, u.OfChatCompletionNamedToolChoice)
+	return param.MarshalUnion(u, u.OfAuto, u.OfAllowedTools, u.OfFunctionToolChoice, u.OfCustomToolChoice)
 }
 func (u *ChatCompletionToolChoiceOptionUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
@@ -2149,8 +2734,48 @@ func (u *ChatCompletionToolChoiceOptionUnionParam) UnmarshalJSON(data []byte) er
 func (u *ChatCompletionToolChoiceOptionUnionParam) asAny() any {
 	if !param.IsOmitted(u.OfAuto) {
 		return &u.OfAuto
-	} else if !param.IsOmitted(u.OfChatCompletionNamedToolChoice) {
-		return u.OfChatCompletionNamedToolChoice
+	} else if !param.IsOmitted(u.OfAllowedTools) {
+		return u.OfAllowedTools
+	} else if !param.IsOmitted(u.OfFunctionToolChoice) {
+		return u.OfFunctionToolChoice
+	} else if !param.IsOmitted(u.OfCustomToolChoice) {
+		return u.OfCustomToolChoice
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionToolChoiceOptionUnionParam) GetAllowedTools() *ChatCompletionAllowedToolsParam {
+	if vt := u.OfAllowedTools; vt != nil {
+		return &vt.AllowedTools
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionToolChoiceOptionUnionParam) GetFunction() *ChatCompletionNamedToolChoiceFunctionParam {
+	if vt := u.OfFunctionToolChoice; vt != nil {
+		return &vt.Function
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionToolChoiceOptionUnionParam) GetCustom() *ChatCompletionNamedToolChoiceCustomCustomParam {
+	if vt := u.OfCustomToolChoice; vt != nil {
+		return &vt.Custom
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ChatCompletionToolChoiceOptionUnionParam) GetType() *string {
+	if vt := u.OfAllowedTools; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfFunctionToolChoice; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfCustomToolChoice; vt != nil {
+		return (*string)(&vt.Type)
 	}
 	return nil
 }
@@ -2262,6 +2887,56 @@ func (u *ChatCompletionUserMessageParamContentUnion) asAny() any {
 	return nil
 }
 
+// Constrains the tools available to the model to a pre-defined set.
+//
+// The properties Mode, Tools are required.
+type ChatCompletionAllowedToolsParam struct {
+	// Constrains the tools available to the model to a pre-defined set.
+	//
+	// `auto` allows the model to pick from among the allowed tools and generate a
+	// message.
+	//
+	// `required` requires the model to call one or more of the allowed tools.
+	//
+	// Any of "auto", "required".
+	Mode ChatCompletionAllowedToolsMode `json:"mode,omitzero,required"`
+	// A list of tool definitions that the model should be allowed to call.
+	//
+	// For the Chat Completions API, the list of tool definitions might look like:
+	//
+	// ```json
+	// [
+	//
+	//	{ "type": "function", "function": { "name": "get_weather" } },
+	//	{ "type": "function", "function": { "name": "get_time" } }
+	//
+	// ]
+	// ```
+	Tools []map[string]any `json:"tools,omitzero,required"`
+	paramObj
+}
+
+func (r ChatCompletionAllowedToolsParam) MarshalJSON() (data []byte, err error) {
+	type shadow ChatCompletionAllowedToolsParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ChatCompletionAllowedToolsParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Constrains the tools available to the model to a pre-defined set.
+//
+// `auto` allows the model to pick from among the allowed tools and generate a
+// message.
+//
+// `required` requires the model to call one or more of the allowed tools.
+type ChatCompletionAllowedToolsMode string
+
+const (
+	ChatCompletionAllowedToolsModeAuto     ChatCompletionAllowedToolsMode = "auto"
+	ChatCompletionAllowedToolsModeRequired ChatCompletionAllowedToolsMode = "required"
+)
+
 type ChatCompletionNewParams struct {
 	// A list of messages comprising the conversation so far. Depending on the
 	// [model](https://platform.openai.com/docs/models) you use, different message
@@ -2314,7 +2989,7 @@ type ChatCompletionNewParams struct {
 	// our [model distillation](https://platform.openai.com/docs/guides/distillation)
 	// or [evals](https://platform.openai.com/docs/guides/evals) products.
 	//
-	// Supports text and image inputs. Note: image inputs over 10MB will be dropped.
+	// Supports text and image inputs. Note: image inputs over 8MB will be dropped.
 	Store param.Opt[bool] `json:"store,omitzero"`
 	// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will
 	// make the output more random, while lower values like 0.2 will make it more
@@ -2384,14 +3059,13 @@ type ChatCompletionNewParams struct {
 	//
 	// Any of "text", "audio".
 	Modalities []string `json:"modalities,omitzero"`
-	// **o-series models only**
-	//
 	// Constrains effort on reasoning for
 	// [reasoning models](https://platform.openai.com/docs/guides/reasoning). Currently
-	// supported values are `low`, `medium`, and `high`. Reducing reasoning effort can
-	// result in faster responses and fewer tokens used on reasoning in a response.
+	// supported values are `minimal`, `low`, `medium`, and `high`. Reducing reasoning
+	// effort can result in faster responses and fewer tokens used on reasoning in a
+	// response.
 	//
-	// Any of "low", "medium", "high".
+	// Any of "minimal", "low", "medium", "high".
 	ReasoningEffort shared.ReasoningEffort `json:"reasoning_effort,omitzero"`
 	// Specifies the processing type used for serving the request.
 	//
@@ -2401,9 +3075,8 @@ type ChatCompletionNewParams struct {
 	//   - If set to 'default', then the request will be processed with the standard
 	//     pricing and performance for the selected model.
 	//   - If set to '[flex](https://platform.openai.com/docs/guides/flex-processing)' or
-	//     'priority', then the request will be processed with the corresponding service
-	//     tier. [Contact sales](https://openai.com/contact-sales) to learn more about
-	//     Priority processing.
+	//     '[priority](https://openai.com/api-priority-processing/)', then the request
+	//     will be processed with the corresponding service tier.
 	//   - When not set, the default behavior is 'auto'.
 	//
 	// When the `service_tier` parameter is set, the response body will include the
@@ -2420,6 +3093,12 @@ type ChatCompletionNewParams struct {
 	Stop ChatCompletionNewParamsStopUnion `json:"stop,omitzero"`
 	// Options for streaming response. Only set this when you set `stream: true`.
 	StreamOptions ChatCompletionStreamOptionsParam `json:"stream_options,omitzero"`
+	// Constrains the verbosity of the model's response. Lower values will result in
+	// more concise responses, while higher values will result in more verbose
+	// responses. Currently supported values are `low`, `medium`, and `high`.
+	//
+	// Any of "low", "medium", "high".
+	Verbosity ChatCompletionNewParamsVerbosity `json:"verbosity,omitzero"`
 	// Deprecated in favor of `tool_choice`.
 	//
 	// Controls which (if any) function is called by the model.
@@ -2463,10 +3142,10 @@ type ChatCompletionNewParams struct {
 	// `none` is the default when no tools are present. `auto` is the default if tools
 	// are present.
 	ToolChoice ChatCompletionToolChoiceOptionUnionParam `json:"tool_choice,omitzero"`
-	// A list of tools the model may call. Currently, only functions are supported as a
-	// tool. Use this to provide a list of functions the model may generate JSON inputs
-	// for. A max of 128 functions are supported.
-	Tools []ChatCompletionToolParam `json:"tools,omitzero"`
+	// A list of tools the model may call. You can provide either
+	// [custom tools](https://platform.openai.com/docs/guides/function-calling#custom-tools)
+	// or [function tools](https://platform.openai.com/docs/guides/function-calling).
+	Tools []ChatCompletionToolUnionParam `json:"tools,omitzero"`
 	// This tool searches the web for relevant results to use in a response. Learn more
 	// about the
 	// [web search tool](https://platform.openai.com/docs/guides/tools-web-search?api-mode=chat).
@@ -2603,9 +3282,8 @@ func (u ChatCompletionNewParamsResponseFormatUnion) GetType() *string {
 //   - If set to 'default', then the request will be processed with the standard
 //     pricing and performance for the selected model.
 //   - If set to '[flex](https://platform.openai.com/docs/guides/flex-processing)' or
-//     'priority', then the request will be processed with the corresponding service
-//     tier. [Contact sales](https://openai.com/contact-sales) to learn more about
-//     Priority processing.
+//     '[priority](https://openai.com/api-priority-processing/)', then the request
+//     will be processed with the corresponding service tier.
 //   - When not set, the default behavior is 'auto'.
 //
 // When the `service_tier` parameter is set, the response body will include the
@@ -2646,6 +3324,17 @@ func (u *ChatCompletionNewParamsStopUnion) asAny() any {
 	}
 	return nil
 }
+
+// Constrains the verbosity of the model's response. Lower values will result in
+// more concise responses, while higher values will result in more verbose
+// responses. Currently supported values are `low`, `medium`, and `high`.
+type ChatCompletionNewParamsVerbosity string
+
+const (
+	ChatCompletionNewParamsVerbosityLow    ChatCompletionNewParamsVerbosity = "low"
+	ChatCompletionNewParamsVerbosityMedium ChatCompletionNewParamsVerbosity = "medium"
+	ChatCompletionNewParamsVerbosityHigh   ChatCompletionNewParamsVerbosity = "high"
+)
 
 // This tool searches the web for relevant results to use in a response. Learn more
 // about the
@@ -2745,9 +3434,12 @@ type ChatCompletionListParams struct {
 	Limit param.Opt[int64] `query:"limit,omitzero" json:"-"`
 	// The model used to generate the Chat Completions.
 	Model param.Opt[string] `query:"model,omitzero" json:"-"`
-	// A list of metadata keys to filter the Chat Completions by. Example:
+	// Set of 16 key-value pairs that can be attached to an object. This can be useful
+	// for storing additional information about the object in a structured format, and
+	// querying for objects via API or the dashboard.
 	//
-	// `metadata[key1]=value1&metadata[key2]=value2`
+	// Keys are strings with a maximum length of 64 characters. Values are strings with
+	// a maximum length of 512 characters.
 	Metadata shared.Metadata `query:"metadata,omitzero" json:"-"`
 	// Sort order for Chat Completions by timestamp. Use `asc` for ascending order or
 	// `desc` for descending order. Defaults to `asc`.
