@@ -545,7 +545,7 @@ func (cfg *RequestConfig) Execute() (err error) {
 		default:
 			err = json.NewDecoder(bytes.NewReader(contents)).Decode(cfg.ResponseBodyInto)
 			if err != nil {
-				return fmt.Errorf("error parsing response json: %w, status: %d, header: %+v, response: %s", err, res.StatusCode, res.Header, string(contents))
+				return fmt.Errorf("error parsing response json: %w, status: %d, response: %s", err, res.StatusCode, string(contents))
 			}
 		}
 		return nil
